@@ -1,83 +1,145 @@
 #include <iostream>
 #include <windows.h>
 
+enum class clickerType
+{
+    AUTO,
+    HOLD,
+    HOLDBREAK
+};
+
+int enumIndex;
+bool holdingClick = false;
+
+clickerType currentType = clickerType::AUTO;
+
+INPUT inputs[2] = {0};
+
+void autoClicker(int delay)
+{
+    while (true)
+    {
+        // handle click down and up
+        inputs[0].mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
+        SendInput(1, &inputs[0], sizeof(INPUT));
+
+        inputs[0].mi.dwFlags = MOUSEEVENTF_LEFTUP;
+        SendInput(1, &inputs[0], sizeof(INPUT));
+
+        // wait for the delay
+        Sleep(delay);
+
+        // handle exiting the auto clicker
+        if (GetAsyncKeyState(VK_F10) & 0x01)
+        {
+            break;
+        }
+    }
+}
+
+void holdClicker()
+{
+    while (true)
+    {
+        // allows less sending of packets (less laggy)
+        if (!holdingClick)
+        {
+            // hold down click
+            inputs[0].mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
+            SendInput(1, &inputs[0], sizeof(INPUT));
+            holdingClick = true;
+        }
+
+        // handle exiting the hold clicker
+        if (GetAsyncKeyState(VK_F10) & 0x01)
+        {
+            // stop holding click
+            inputs[0].mi.dwFlags = MOUSEEVENTF_LEFTUP;
+            SendInput(1, &inputs[0], sizeof(INPUT));
+            holdingClick = false;
+
+            break;
+        }
+    }
+}
+
+void holdBreakClicker(int delay)
+{
+    while (true)
+    {
+        // Simulate mouse button down
+        inputs[0].mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
+        SendInput(1, &inputs[0], sizeof(INPUT));
+
+        // Hold for 2.5 seconds
+        Sleep(delay);
+
+        // Simulate mouse button up
+        inputs[0].mi.dwFlags = MOUSEEVENTF_LEFTUP;
+        SendInput(1, &inputs[0], sizeof(INPUT));
+
+        // Small delay before the next cycle
+        Sleep(50);
+
+        // handle exiting the hold break clicker
+        if (GetAsyncKeyState(VK_F10) & 0x01)
+        {
+            std::cout << "broke out" << std::endl;
+            break;
+        }
+    }
+}
+
+void cycleStates()
+{
+    if (GetAsyncKeyState(VK_F8) & 0x01)
+    {
+        enumIndex = (int)(currentType);
+
+        // Increment and wrap around
+        if (enumIndex < 2)
+        {
+            enumIndex++;
+        }
+        else
+        {
+            enumIndex = 0; // Reset to the first type
+        }
+
+        currentType = static_cast<clickerType>(enumIndex); // Update the currentType
+    }
+}
+
 int main()
 {
-    bool F9Running = false;
-    bool F10Running = false;
-
-    // State tracking for F9 and F10
-    bool wasF9Pressed = false;
-    bool wasF10Pressed = false;
-
     // Initialize an INPUT structure for mouse events
-    INPUT inputs[2] = {0};
-    inputs[0].type = INPUT_MOUSE;                // Specify that this input is for the mouse
-    inputs[0].mi.dwFlags = MOUSEEVENTF_LEFTDOWN; // Mouse button down event
+    inputs[0].type = INPUT_MOUSE;
+    inputs[0].mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
 
-    inputs[1].type = INPUT_MOUSE;              // Specify that this input is for the mouse
-    inputs[1].mi.dwFlags = MOUSEEVENTF_LEFTUP; // Mouse button up event
+    inputs[1].type = INPUT_MOUSE;
+    inputs[1].mi.dwFlags = MOUSEEVENTF_LEFTUP;
 
     while (true)
     {
-        // Check if F9 is currently pressed
-        bool isF9Pressed = GetKeyState(VK_F9) & 0x8000;
-
-        // Check if F10 is currently pressed
-        bool isF10Pressed = GetKeyState(VK_F10) & 0x8000;
-
-        // Detect the transition from not pressed to pressed for F9
-        if (isF9Pressed)
+        if (GetAsyncKeyState(VK_F9) & 0x01)
         {
-            if (!F9Running)
+            if (currentType == clickerType::AUTO)
             {
-                std::cout << "F9 pressed" << std::endl;
-                F9Running = true;
-                SendInput(1, &inputs[0], sizeof(INPUT)); // Mouse down
-                inputs[0].mi.dwFlags = MOUSEEVENTF_LEFTUP;
+                autoClicker(1);
             }
-            else
+
+            if (currentType == clickerType::HOLD)
             {
-                std::cout << "F9 pressed again" << std::endl;
-                F9Running = false;
-                break;
+                holdClicker();
+            }
+
+            if (currentType == clickerType::HOLDBREAK)
+            {
+                holdBreakClicker(2500);
             }
         }
 
-        // Detect the transition from not pressed to pressed for F10
-        if (isF10Pressed)
-        {
-            if (!F10Running)
-            {
-                std::cout << "F10 started" << std::endl;
-                std::cout << isF10Pressed << std::endl;
-                F10Running = true;
-                // Loop until F10 is pressed again
-                while (F10Running)
-                {
-                    // Simulate mouse button down
-                    inputs[0].mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
-                    SendInput(1, &inputs[0], sizeof(INPUT));
-
-                    // Hold for 5 seconds
-                    Sleep(2500);
-
-                    // Simulate mouse button up
-                    inputs[0].mi.dwFlags = MOUSEEVENTF_LEFTUP;
-                    SendInput(1, &inputs[0], sizeof(INPUT));
-
-                    // Small delay before the next cycle
-                    Sleep(50);
-
-                    if (isF10Pressed)
-                    {
-                        std::cout << "F10 pressed again" << std::endl;
-                        F10Running = false;
-                        // break;
-                    }
-                }
-            }
-        }
+        cycleStates();
     }
 
     return 0;
