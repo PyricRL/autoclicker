@@ -58,5 +58,6 @@
     "string": "cpp",
     "thread": "cpp",
     "vector": "cpp"
-  }
+  },
+  "C_Cpp.errorSquiggles": "disabled"
 }
